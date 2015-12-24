@@ -32,6 +32,8 @@ class MUSICEst:
 
         @param angle angle of sound source in rad
         @param frequency frequency of the emitted sound in Hz
+        @param mode determines whether the returned vector will be testet against a covariance matrix
+                or a cross-spectral matrix (possible values: 'cov', 'spec')
         @return a numpy nx1 matrix, with n as amount of antennas
         """
 
@@ -46,16 +48,32 @@ class MUSICEst:
             steeringVec[i] = np.exp(-1j * 2 * np.pi * frequency * delay)
         return steeringVec
 
-    def getSpectrum(self, noiseMat, frequency):
+    def getSpectrum(self, noiseMat, frequency, noiseMatMode='cov'):
         """
         Creates a spectrum with to determine the doa for a given noise matrix.
 
         @param noiseMat noise matrix, consisting of the eigenvectors f the noise subspace
         @param frequency frequency of the searched source
+        @param noiseMatMode determines the type of the matrix noiseMat is generated from.
+                I am using a negative imaginary unit for wave paramerization, so the "Zeiger"
+                rotates clockwise in time (that is typical for signal processing and can be also
+                intepreted as negative frequency). But the DFT returns complex numbers with
+                positive imaginary unit (positive frequency), so if I use a cross-spectral
+                matrix to generate noiseMat the determinations are biased by pi. This behavour
+                is corrected by this parameter.
+                Possible values:
+                    cov: a classical covariance matrix is used
+                    spec: a cross-spectral matrix is used
         @param tuple (spectrum, angleSteps):
             spectrum: 1-D numpy array with the spectrum values
             angleSteps: analysed angles
         """
+
+        if noiseMatMode not in ('cov', 'spec'):
+            raise ValueError('noiseMatMode has to be "cov" or "spec!"')
+
+        if noiseMatMode == 'spec':
+            frequency = -frequency
 
         # Number of rows (or columns) of noise space matrix must be the number of antennas
         assert noiseMat.shape[0] == self.antennaPositions.shape[1]
@@ -91,7 +109,7 @@ class MUSICEst:
         eigenBundles = []
         for i in range(eigenVals.shape[0]):
             # Second item within the tuple just to keep strict order for sorting
-            eigenBundles.append((abs(eigenVals[i]), i, np.matrix(eigenVecs[:, i])))
+            eigenBundles.append((abs(eigenVals[i]), i, np.matrix(eigenVecs[:, i]).transpose()))
         eigenBundles = sorted(eigenBundles)
 
         # Generate noise matrix
