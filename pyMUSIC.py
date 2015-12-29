@@ -121,7 +121,10 @@ class MUSICEst:
 
     def getSourceAngles(self, data, amountOfSources=1, frequency=300):
         """
-        Estimates the angles of arrival of the sources.
+        Estimates the angles of arrival of the sources (currently not workingi :( ).
+
+        TODO currently this implementation fails, because I don't substract the peaks after finding them.
+        Therefore all angles are clustered around the first occurence.
 
         @param data a numpy array with 24 PCM data sampled an microphone array with given geometry
             Note that the data need to be samples with approximated zero mean and the result
@@ -130,9 +133,6 @@ class MUSICEst:
         @param frequency frequency of the signal to find
         @return a numpy array with the angles with the highest MUSIC score
         """
-
-        # TODO currently fails, because I don't substract the peaks after finding them (because they're within a
-        # curve), therefore all angles are clustered around the first occurence
 
         # Some helper variables to keep source code more readable
         antennasNum = self.antennaPositions.shape[1]
