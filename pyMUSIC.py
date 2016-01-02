@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.fft import rfft, rfftfreq
 from pySoundToolbox.pySoundToolbox import genAnalyticSignal
 
 class MUSICEst:
@@ -171,3 +172,70 @@ class MUSICEst:
                 peakAngles[j] = angleSteps[i]
 
         return peakAngles
+
+
+def STFT(data, nfft, noOverlap=0):
+    """
+    Applies a STFT on given data of a real signal
+
+    @param data sampled data of the real signal (1-D numpy array)
+    @param nfft window size of the fft
+    @param noOverlap number of samples the windows should overlap
+    @return numpy array, lines are the frequency bins, coloumns are the time window
+    """
+
+    assert noOverlap < nfft
+
+    # Amount of windows
+    noWindows = data.shape[0] // (nfft - noOverlap)
+    stft = np.empty((nfft // 2 + 1, noWindows), dtype=np.complex)
+    for i in range(noWindows):
+        fft = rfft(data[i * (nfft - noOverlap):i * (nfft - noOverlap) + nfft])
+        stft[:, i] = fft
+
+    return stft
+
+def IFBMUSICSpectrum(data, micPositions, nfft, amountOfSources=1, angleStepsNum=720,\
+                     searchInterval=(0, 2 * np.pi), samplingRate=16000, bins=None):
+    """
+    Returns an IFB MUSIC spectrum. The narrowband spectrums are merged by geometric mean.
+
+    @param data sampled data (real part of the signal)
+    @param nfft window size of for the STFT in samples
+    @param amountOfSources assumed number of sources
+    @param angleStepsNum amount of angle to analyze
+    @param searchInterval tuple with the first element as starting angle and the second element is end angle
+    @param rate the data are sampled
+    @param bins array or range determining the frequency bins to use
+    @return IFB MUSIC spectrum
+    """
+
+    narrowBandEst = MUSICEst(antennaPositions=micPositions, angleStepsNum=angleStepsNum,\
+                             searchInterval=searchInterval)
+
+    # STFT for all microphones (format: [microphone, frequency bins, time])
+    stft = np.empty((data.shape[0], nfft // 2 + 1, data.shape[1] // nfft), dtype=np.complex)
+    for i in range(data.shape[0]):
+        stft[i, :, :] = STFT(np.asarray(data)[i, :], nfft)
+
+    # Physical frequencies for the MUSIC algorithm
+    freqs = rfftfreq(nfft, 1 / samplingRate)
+
+    mergedSpectrums = np.ones(angleStepsNum)
+    if bins == None:
+        bins = range(nfft // 2 + 1)
+
+    # Calculate narrowband spectrums and merging them with geometric mean
+    for binIdx in bins:
+        crossSpectrum = np.zeros((stft.shape[0], stft.shape[0]), dtype=np.complex)
+        for j in range(stft.shape[2]):
+            curDFT = np.matrix(stft[:, binIdx, j]).transpose()
+            crossSpectrum += curDFT * curDFT.transpose().conjugate()
+        crossSpectrum /= stft.shape[2]
+        noiseMat = narrowBandEst.getNoiseMat(crossSpectrum, amountOfSources)
+        spectrum, angleBins = narrowBandEst.getSpectrum(noiseMat, freqs[binIdx], noiseMatMode='spec')
+        mergedSpectrums *= spectrum
+
+    mergedSpectrums = mergedSpectrums ** (1 / len(bins))
+
+    return mergedSpectrums, angleBins
