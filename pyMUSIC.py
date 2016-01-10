@@ -223,7 +223,7 @@ def IFBMUSICSpectrum(data, micPositions, nfft, amountOfSources=1, angleStepsNum=
 
     mergedSpectrums = np.ones(angleStepsNum)
     if bins == None:
-        bins = range(nfft // 2 + 1)
+        bins = range(nfft // 2)
 
     # Calculate narrowband spectrums and merging them with geometric mean
     for binIdx in bins:
