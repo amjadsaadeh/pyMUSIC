@@ -116,7 +116,7 @@ class MUSICEst:
         # Generate noise matrix
         noiseMat = np.matrix(np.empty((antennasNum, antennasNum - amountOfSources), dtype=np.complex))
         for i in range(antennasNum - amountOfSources):
-            noiseMat[:, i] = eigenBundles[i][2]
+            noiseMat[:, i] = eigenBundles[i][2].transpose()
 
         return noiseMat
 
@@ -227,7 +227,7 @@ def IFBMUSICSpectrum(data, micPositions, nfft, amountOfSources=1, angleStepsNum=
 
     # Calculate narrowband spectrums and merging them with geometric mean
     for binIdx in bins:
-        crossSpectrum = np.zeros((stft.shape[0], stft.shape[0]), dtype=np.complex)
+        crossSpectrum = np.matrix(np.zeros((stft.shape[0], stft.shape[0]), dtype=np.complex))
         for j in range(stft.shape[2]):
             curDFT = np.matrix(stft[:, binIdx, j]).transpose()
             crossSpectrum += curDFT * curDFT.transpose().conjugate()
